@@ -13,11 +13,12 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Bem-vindo ao Software Starter
+          Bem-vindo ao Book Club Platform
         </h1>
 
         <p className="text-muted-foreground">
-          Explore os componentes reutilizáveis e a feature de referência.
+          A base técnica está pronta para evolução incremental. O CRUD de
+          exemplo continua disponível como referência arquitetural.
         </p>
       </div>
 

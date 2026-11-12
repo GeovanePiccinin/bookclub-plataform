@@ -55,7 +55,7 @@ export default function LoginPage() {
         >
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold tracking-tight">
-              Software Starter
+              Book Club Platform
             </h1>
 
             <p className="text-sm text-muted-foreground">

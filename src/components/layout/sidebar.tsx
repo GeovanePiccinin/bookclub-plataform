@@ -79,7 +79,9 @@ export function Sidebar() {
         ].join(" ")}
       >
         {!collapsed && (
-          <span className="font-semibold tracking-tight">Software Starter</span>
+          <span className="font-semibold tracking-tight">
+            Book Club Platform
+          </span>
         )}
 
         <Button
