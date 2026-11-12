@@ -1,13 +1,16 @@
 # Contribuindo
 
-O Software Starter é uma base técnica reutilizável. Discuta mudanças de escopo
-por Issue antes de iniciar trabalho amplo. Não inclua funcionalidades de
-produto no starter sem alinhamento com os responsáveis pelo projeto.
+O Book Club Platform é uma base técnica em preparação para o desenvolvimento
+incremental do produto. Discuta mudanças de escopo por Issue antes de iniciar
+trabalho amplo. O Product Backlog orienta o planejamento, mas não autoriza por
+si só a implementação das funcionalidades propostas. Não implemente
+funcionalidades do domínio sem alinhamento com os responsáveis pelo projeto.
 
 ## Pré-requisitos e ambiente
 
 Use Git, Docker Desktop com Compose, Node.js 22 e pnpm. O setup local é
-documentado no [README](./README.md) e no [guia do starter](./docs/software-starter.md):
+documentado no [README](./README.md) e no
+[guia de arquitetura](./docs/architecture-guide.md):
 
 ```bash
 pnpm install

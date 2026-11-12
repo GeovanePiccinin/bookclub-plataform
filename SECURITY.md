@@ -6,8 +6,8 @@
 | ------ | ------------------- |
 | `main` | Sim                 |
 
-O starter é uma base de código, não um serviço hospedado. Projetos derivados
-devem manter suas dependências e deploys atualizados de forma independente.
+O Book Club Platform é uma base de código, não um serviço hospedado. Mantenha
+suas dependências e deploys atualizados de forma independente.
 
 ## Reportar uma vulnerabilidade
 

@@ -14,9 +14,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Software Starter",
+  title: "Book Club Platform",
   description:
-    "Base full-stack reutilizável com autenticação, autorização, multi-tenancy e observabilidade.",
+    "Base técnica do Book Club Platform, com autenticação, autorização, CRUD de referência e observabilidade.",
 };
 
 interface RootLayoutProps {

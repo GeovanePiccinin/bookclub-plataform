@@ -12,4 +12,4 @@
   `pnpm typecheck` e testes relevantes. Revise código gerado por IA/Plop e
   nunca submeta segredos ou dados pessoais.
 - Consulte [CONTRIBUTING](../CONTRIBUTING.md) e o
-  [guia do starter](../docs/software-starter.md) para fluxos e convenções.
+  [guia de arquitetura](../docs/architecture-guide.md) para fluxos e convenções.

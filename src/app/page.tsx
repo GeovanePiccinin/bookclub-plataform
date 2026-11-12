@@ -1,8 +1,8 @@
 import Link from "next/link";
 import {
   ArrowRight,
+  BookOpen,
   Boxes,
-  Code2,
   Database,
   Layers3,
   ShieldCheck,
@@ -37,9 +37,11 @@ export default function Home() {
       <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-5 lg:px-8">
         <Link href="/" className="flex items-center gap-2.5">
           <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <Code2 aria-hidden="true" className="size-5" />
+            <BookOpen aria-hidden="true" className="size-5" />
           </span>
-          <span className="font-semibold tracking-tight">Software Starter</span>
+          <span className="font-semibold tracking-tight">
+            Book Club Platform
+          </span>
         </Link>
 
         <Link href="/login" className={buttonVariants({ variant: "outline" })}>
@@ -56,20 +58,20 @@ export default function Home() {
           <div className="max-w-2xl">
             <span className="inline-flex items-center gap-2 rounded-full border bg-card/80 px-3 py-1 text-sm text-muted-foreground shadow-sm">
               <span className="size-2 rounded-full bg-primary" />
-              Base técnica para novos produtos web
+              Fábrica de Software Virtual
             </span>
             <h1 className="mt-7 text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl">
               Comece com uma base{" "}
               <span className="text-primary">pronta para crescer.</span>
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-8 text-muted-foreground">
-              Um starter full-stack com autenticação, autorização,
-              multi-tenancy, persistência, testes e observabilidade. Clone,
-              execute localmente e evolua a partir de uma feature funcional.
+              Uma base técnica para evoluir, com autenticação, autorização,
+              persistência, testes e observabilidade. O CRUD demonstrativo
+              permanece como referência para novas funcionalidades.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Link href="/login" className={buttonVariants({ size: "lg" })}>
-                Acessar o starter
+                Acessar a plataforma
                 <ArrowRight aria-hidden="true" />
               </Link>
               <p className="self-center text-sm text-muted-foreground">
@@ -78,7 +80,7 @@ export default function Home() {
             </div>
             <div className="mt-10 flex items-center gap-2 text-sm text-muted-foreground">
               <Boxes aria-hidden="true" className="size-4 text-primary" />
-              Exemplo pronto para servir de referência a novas features.
+              Base técnica preparada para evolução incremental.
             </div>
           </div>
 
@@ -122,15 +124,16 @@ export default function Home() {
         <div className="mx-auto w-full max-w-7xl px-6 py-16 lg:px-8 lg:py-20">
           <div className="max-w-2xl">
             <p className="text-sm font-semibold text-primary">
-              Software Starter
+              Book Club Platform
             </p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
               Infraestrutura reutilizável, domínio flexível.
             </h2>
             <p className="mt-4 leading-7 text-muted-foreground">
-              A feature ExampleItem demonstra validação, Server Actions,
-              persistência tenant-scoped, autorização administrativa e interface
-              CRUD sem impor um domínio de produto.
+              O domínio do clube do livro ainda não foi implementado. A feature
+              ExampleItem demonstra validação, Server Actions, persistência com
+              isolamento por tenant, autorização administrativa e interface
+              CRUD.
             </p>
           </div>
 
@@ -155,7 +158,7 @@ export default function Home() {
 
       <footer className="border-t">
         <div className="mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-4 px-6 py-6 text-sm text-muted-foreground sm:flex-row lg:px-8">
-          <p>Software Starter · base para evolução incremental</p>
+          <p>Book Club Platform · base técnica em evolução</p>
           <Link
             href="/login"
             className="font-medium text-primary underline-offset-4 hover:underline"
