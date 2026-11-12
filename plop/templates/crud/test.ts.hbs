@@ -1,0 +1,21 @@
+import { describe, expect, it } from "vitest";
+
+import { create{{pascalCase entityName}}Schema } from "./{{kebabCase entityName}}.schema";
+
+describe("{{pascalCase entityName}} schema", () => {
+  it("accepts valid model data", () => {
+    const result = create{{pascalCase entityName}}Schema.safeParse({
+{{#each fields}}
+      {{name}}: {{#if isBoolean}}false{{else if optional}}""{{else if isEnum}}"{{lookup enumValues 0}}"{{else if isDateTime}}"2026-01-15T10:30"{{else if isNumeric}}"1"{{else}}"Exemplo"{{/if}},
+{{/each}}
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a non-object input", () => {
+    const result = create{{pascalCase entityName}}Schema.safeParse(null);
+
+    expect(result.success).toBe(false);
+  });
+});

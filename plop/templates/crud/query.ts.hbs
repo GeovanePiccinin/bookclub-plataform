@@ -1,0 +1,30 @@
+import { z } from "zod";
+
+export const {{camelCase entityName}}ListQuerySchema = z.object({
+  search: z.string().trim().max(100).default(""),
+  page: z.number().int().positive().default(1),
+  pageSize: z.number().int().positive().max(100).default(10),
+  sortBy: z
+    .enum(["id", {{#each sortableFields}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}])
+    .default("{{defaultSortField}}"),
+  sortDirection: z.enum(["asc", "desc"]).default("asc"),
+});
+
+export type {{pascalCase entityName}}ListQuery = z.infer<
+  typeof {{camelCase entityName}}ListQuerySchema
+>;
+
+export interface {{pascalCase entityName}}ListItem {
+  id: string;
+{{#each fields}}
+  {{name}}: {{listType}};
+{{/each}}
+}
+
+export interface {{pascalCase entityName}}ListResult {
+  items: {{pascalCase entityName}}ListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}

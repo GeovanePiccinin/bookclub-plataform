@@ -1,0 +1,145 @@
+"use server";
+
+import {
+  requireAuthenticatedActor,
+  requireRole,
+} from "@/lib/auth/get-authenticated-user";
+import { logger } from "@/lib/logger/logger";
+
+import {
+  create{{pascalCase entityName}}Schema,
+  delete{{pascalCase entityName}}Schema,
+  update{{pascalCase entityName}}Schema,
+} from "./{{kebabCase entityName}}.schema";
+
+import {
+  create{{pascalCase entityName}},
+  delete{{pascalCase entityName}},
+  find{{pascalCase pluralName}},
+  update{{pascalCase entityName}},
+} from "./{{kebabCase entityName}}.repository";
+
+import {
+  {{camelCase entityName}}ListQuerySchema,
+  type {{pascalCase entityName}}ListResult,
+} from "./{{kebabCase entityName}}.query";
+
+export async function get{{pascalCase pluralName}}(
+  input: unknown,
+): Promise<{{pascalCase entityName}}ListResult & {
+  canCreate: boolean;
+  canManage: boolean;
+}> {
+  const actor = await requireAuthenticatedActor();
+{{#if readRequiresAdmin}}
+  requireRole(actor, "ADMIN");
+{{/if}}
+
+  const query = {{camelCase entityName}}ListQuerySchema.parse(input);
+  const result = await find{{pascalCase pluralName}}(actor.tenantId, query);
+
+  return {
+    ...result,
+    canCreate: {{#if createRequiresAdmin}}actor.role === "ADMIN"{{else}}true{{/if}},
+    canManage: actor.role === "ADMIN",
+  };
+}
+
+export async function create{{pascalCase entityName}}Action(
+  input: unknown,
+): Promise<void> {
+  const actor = await requireAuthenticatedActor();
+{{#if createRequiresAdmin}}
+  requireRole(actor, "ADMIN");
+{{/if}}
+  const data = create{{pascalCase entityName}}Schema.parse(input);
+
+  try {
+    await create{{pascalCase entityName}}(actor.tenantId, data);
+
+    logger.info(
+      {
+        operation: "{{camelCase entityName}}.create",
+        tenantId: actor.tenantId,
+      },
+      "{{pascalCase entityName}} created",
+    );
+  } catch (error: unknown) {
+    logger.error(
+      {
+        operation: "{{camelCase entityName}}.create",
+        tenantId: actor.tenantId,
+        error,
+      },
+      "Failed to create {{camelCase entityName}}",
+    );
+
+    throw error;
+  }
+}
+
+export async function update{{pascalCase entityName}}Action(
+  input: unknown,
+): Promise<void> {
+  const actor = await requireAuthenticatedActor();
+  requireRole(actor, "ADMIN");
+  const data = update{{pascalCase entityName}}Schema.parse(input);
+
+  try {
+    await update{{pascalCase entityName}}(actor.tenantId, data);
+
+    logger.info(
+      {
+        operation: "{{camelCase entityName}}.update",
+        tenantId: actor.tenantId,
+        {{camelCase entityName}}Id: data.id,
+      },
+      "{{pascalCase entityName}} updated",
+    );
+  } catch (error: unknown) {
+    logger.error(
+      {
+        operation: "{{camelCase entityName}}.update",
+        tenantId: actor.tenantId,
+        {{camelCase entityName}}Id: data.id,
+        error,
+      },
+      "Failed to update {{camelCase entityName}}",
+    );
+
+    throw error;
+  }
+}
+
+export async function delete{{pascalCase entityName}}Action(
+  input: unknown,
+): Promise<void> {
+  const actor = await requireAuthenticatedActor();
+  requireRole(actor, "ADMIN");
+  const data = delete{{pascalCase entityName}}Schema.parse(input);
+
+  try {
+    await delete{{pascalCase entityName}}(actor.tenantId, data.id);
+
+    logger.info(
+      {
+        operation: "{{camelCase entityName}}.delete",
+        tenantId: actor.tenantId,
+        {{camelCase entityName}}Id: data.id,
+      },
+      "{{pascalCase entityName}} deleted",
+    );
+  } catch (error: unknown) {
+    logger.error(
+      {
+        operation: "{{camelCase entityName}}.delete",
+        tenantId: actor.tenantId,
+        {{camelCase entityName}}Id: data.id,
+        error,
+      },
+      "Failed to delete {{camelCase entityName}}",
+    );
+
+    throw error;
+  }
+}

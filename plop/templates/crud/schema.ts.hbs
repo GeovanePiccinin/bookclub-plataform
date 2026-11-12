@@ -1,0 +1,33 @@
+import { z } from "zod";
+{{#if hasEnums}}
+import { {{#each enumNames}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} } from "@/generated/prisma/enums";
+{{/if}}
+
+const {{camelCase entityName}}FieldsSchema = z.object({
+{{#each fields}}
+  {{name}}: {{{zodSchema}}},
+{{/each}}
+});
+
+export const create{{pascalCase entityName}}Schema =
+  {{camelCase entityName}}FieldsSchema;
+
+export const update{{pascalCase entityName}}Schema =
+  {{camelCase entityName}}FieldsSchema.extend({
+    id: z.string().min(1),
+  });
+
+export const delete{{pascalCase entityName}}Schema = z.object({
+  id: z.string().min(1),
+});
+
+export type Create{{pascalCase entityName}}Input =
+  z.input<typeof create{{pascalCase entityName}}Schema>;
+export type Create{{pascalCase entityName}}Data =
+  z.output<typeof create{{pascalCase entityName}}Schema>;
+export type Update{{pascalCase entityName}}Input =
+  z.input<typeof update{{pascalCase entityName}}Schema>;
+export type Update{{pascalCase entityName}}Data =
+  z.output<typeof update{{pascalCase entityName}}Schema>;
+export type Delete{{pascalCase entityName}}Input =
+  z.infer<typeof delete{{pascalCase entityName}}Schema>;

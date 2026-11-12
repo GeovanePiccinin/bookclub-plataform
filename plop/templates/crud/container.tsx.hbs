@@ -1,0 +1,429 @@
+"use client";
+
+import { useState } from "react";
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { SortingState } from "@tanstack/react-table";
+import { Pencil, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+
+import { CrudConfirmDialog } from "@/components/crud/crud-confirm-dialog";
+import { CrudFormDialog } from "@/components/crud/crud-form-dialog";
+import { DataTable } from "@/components/data-table/data-table";
+import { createAppColumnHelper } from "@/components/data-table/table";
+import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
+import { EmptyState } from "@/components/feedback/empty-state";
+import { ErrorState } from "@/components/feedback/error-state";
+import { SearchInput } from "@/components/search-input/search-input";
+import { Button } from "@/components/ui/button";
+import { useListControls } from "@/hooks/use-list-controls";
+
+import {
+  create{{pascalCase entityName}}Action,
+  delete{{pascalCase entityName}}Action,
+  get{{pascalCase pluralName}},
+  update{{pascalCase entityName}}Action,
+} from "./{{kebabCase entityName}}.actions";
+import { {{pascalCase entityName}}Form } from "./{{kebabCase entityName}}-form";
+import type { Create{{pascalCase entityName}}Data } from "./{{kebabCase entityName}}.schema";
+import type {
+  {{pascalCase entityName}}ListItem,
+  {{pascalCase entityName}}ListQuery,
+} from "./{{kebabCase entityName}}.query";
+
+type {{pascalCase entityName}}SortField = {{pascalCase entityName}}ListQuery["sortBy"];
+
+const PAGE_SIZE = 10;
+const allowedSortFields: {{pascalCase entityName}}SortField[] = [
+  "id",
+{{#each sortableFields}}
+  "{{this}}",
+{{/each}}
+];
+
+function getSortingQuery(
+  sorting: SortingState,
+): Pick<{{pascalCase entityName}}ListQuery, "sortBy" | "sortDirection"> {
+  const firstSort = sorting[0];
+
+  if (!firstSort) {
+    return { sortBy: "{{defaultSortField}}", sortDirection: "asc" };
+  }
+
+  const sortBy = allowedSortFields.includes(
+    firstSort.id as {{pascalCase entityName}}SortField,
+  )
+    ? (firstSort.id as {{pascalCase entityName}}SortField)
+    : "{{defaultSortField}}";
+
+  return {
+    sortBy,
+    sortDirection: firstSort.desc ? "desc" : "asc",
+  };
+}
+
+export function {{pascalCase entityName}}Container() {
+  const queryClient = useQueryClient();
+  const {
+    search,
+    debouncedSearch,
+    sorting,
+    pagination,
+    setSearch,
+    setSorting,
+    setPagination,
+  } = useListControls<{{pascalCase entityName}}SortField>({
+    initialPageSize: PAGE_SIZE,
+    debounceDelay: 400,
+  });
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<
+    {{pascalCase entityName}}ListItem | undefined
+  >();
+  const [deletingRecord, setDeletingRecord] = useState<
+    {{pascalCase entityName}}ListItem | undefined
+  >();
+  const sortingQuery = getSortingQuery(sorting);
+  const query: {{pascalCase entityName}}ListQuery = {
+    search: debouncedSearch,
+    page: pagination.pageIndex + 1,
+    pageSize: pagination.pageSize,
+    sortBy: sortingQuery.sortBy,
+    sortDirection: sortingQuery.sortDirection,
+  };
+  const recordsQuery = useQuery({
+    queryKey: [
+      "{{pluralCamelCase}}",
+      query.search,
+      query.page,
+      query.pageSize,
+      query.sortBy,
+      query.sortDirection,
+    ],
+    queryFn: () => get{{pascalCase pluralName}}(query),
+    placeholderData: (previousData) => previousData,
+  });
+  const createMutation = useMutation({
+    mutationFn: create{{pascalCase entityName}}Action,
+    onSuccess: async () => {
+      toast.success({{{messages.createSuccess}}});
+      setFormOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ["{{pluralCamelCase}}"] });
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : {{{messages.createError}}},
+      );
+    },
+  });
+  const updateMutation = useMutation({
+    mutationFn: update{{pascalCase entityName}}Action,
+    onSuccess: async () => {
+      toast.success({{{messages.updateSuccess}}});
+      setFormOpen(false);
+      setEditingRecord(undefined);
+      await queryClient.invalidateQueries({ queryKey: ["{{pluralCamelCase}}"] });
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : {{{messages.updateError}}},
+      );
+    },
+  });
+  const deleteMutation = useMutation({
+    mutationFn: delete{{pascalCase entityName}}Action,
+    onSuccess: async () => {
+      toast.success({{{messages.deleteSuccess}}});
+      setDeletingRecord(undefined);
+
+      if (recordsQuery.data?.items.length === 1 && pagination.pageIndex > 0) {
+        setPagination((previous) => ({
+          ...previous,
+          pageIndex: previous.pageIndex - 1,
+        }));
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["{{pluralCamelCase}}"] });
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : {{{messages.deleteError}}},
+      );
+    },
+  });
+  const isFormPending = createMutation.isPending || updateMutation.isPending;
+
+  function openCreateForm() {
+    setEditingRecord(undefined);
+    setFormOpen(true);
+  }
+
+  function handleFormSubmit(data: Create{{pascalCase entityName}}Data) {
+    if (editingRecord) {
+      updateMutation.mutate({ id: editingRecord.id, ...data });
+      return;
+    }
+
+    createMutation.mutate(data);
+  }
+
+  function handleDelete() {
+    if (deletingRecord) {
+      deleteMutation.mutate({ id: deletingRecord.id });
+    }
+  }
+
+  const columnHelper = createAppColumnHelper<{{pascalCase entityName}}ListItem>();
+  const columns = columnHelper.columns([
+{{#each fields}}
+    columnHelper.accessor("{{name}}", {
+      header: "{{label}}",
+      enableSorting: true,
+      cell: ({ getValue }) => {
+        const value = getValue();
+{{#if isBoolean}}
+        return value ? "Sim" : "Não";
+{{else if isDateTime}}
+        return value
+          ? new Intl.DateTimeFormat("pt-BR", {
+              dateStyle: "short",
+              timeStyle: "short",
+            }).format(value)
+          : "—";
+{{else}}
+{{#if isString}}
+        return value == null || value === "" ? "—" : String(value);
+{{else}}
+        return value == null ? "—" : String(value);
+{{/if}}
+{{/if}}
+      },
+    }),
+{{/each}}
+    ...(recordsQuery.data?.canManage
+      ? [
+          columnHelper.display({
+            id: "actions",
+            header: "Ações",
+            enableSorting: false,
+            cell: ({ row }) => (
+              <div className="flex items-center justify-end gap-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setEditingRecord(row.original);
+                    setFormOpen(true);
+                  }}
+                  aria-label={`Editar ${row.original.id}`}
+                >
+                  <Pencil className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setDeletingRecord(row.original)}
+                  aria-label={`Excluir ${row.original.id}`}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+            ),
+          }),
+        ]
+      : []),
+  ]);
+
+  if (recordsQuery.isPending && !recordsQuery.data) {
+    return (
+      <div className="space-y-4">
+        <RecordHeader
+          pluralLabel="{{pluralLabel}}"
+          singularLabel="{{singularLabel}}"
+          canCreate={false}
+          onCreate={() => openCreateForm()}
+        />
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Pesquisar {{pluralLabel}}..."
+        />
+        <DataTableSkeleton columns={{{tableColumnCountExpression}}} rows={PAGE_SIZE} />
+      </div>
+    );
+  }
+
+  if (recordsQuery.isError && !recordsQuery.data) {
+    return (
+      <div className="space-y-4">
+        <RecordHeader
+          pluralLabel="{{pluralLabel}}"
+          singularLabel="{{singularLabel}}"
+          canCreate={false}
+          onCreate={() => openCreateForm()}
+        />
+        <ErrorState
+          title="Não foi possível carregar {{pluralLabel}}."
+          description="Tente novamente. Se o problema persistir, verifique sua conexão."
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                void recordsQuery.refetch();
+              }}
+            >
+              Tentar novamente
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
+  const data = recordsQuery.data;
+
+  if (!data) {
+    return null;
+  }
+
+  return (
+    <>
+      <div className="space-y-4">
+        <RecordHeader
+          pluralLabel="{{pluralLabel}}"
+          singularLabel="{{singularLabel}}"
+          canCreate={data.canCreate}
+          onCreate={() => openCreateForm()}
+        />
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Pesquisar {{pluralLabel}}..."
+        />
+        {data.items.length === 0 ? (
+          <EmptyState
+            title={
+              debouncedSearch
+                ? "Nenhum {{singularLabel}} encontrado"
+                : "Nenhum {{singularLabel}} cadastrado"
+            }
+            description={
+              debouncedSearch
+                ? "Tente alterar os termos da busca."
+                : "Cadastre o primeiro registro para começar."
+            }
+            action={
+              !debouncedSearch && data.canCreate ? (
+                <Button
+                  type="button"
+                  onClick={openCreateForm}
+                >
+                  <Plus />
+                  Novo {{singularLabel}}
+                </Button>
+              ) : undefined
+            }
+          />
+        ) : (
+          <DataTable<{{pascalCase entityName}}ListItem>
+            columns={columns}
+            data={data.items}
+            sorting={sorting}
+            onSortingChange={setSorting}
+            pagination={pagination}
+            onPaginationChange={setPagination}
+            rowCount={data.total}
+          />
+        )}
+      </div>
+      <CrudFormDialog
+        open={formOpen}
+        onOpenChange={(open) => {
+          if (isFormPending && !open) {
+            return;
+          }
+
+          setFormOpen(open);
+          if (!open) {
+            setEditingRecord(undefined);
+          }
+        }}
+        title={editingRecord ? "Editar {{singularLabel}}" : "Novo {{singularLabel}}"}
+        description={
+          editingRecord
+            ? "Atualize os dados do registro."
+            : "Cadastre um novo registro."
+        }
+      >
+        {formOpen ? (
+          <{{pascalCase entityName}}Form
+            key={editingRecord?.id ?? "new"}
+            {{camelCase entityName}}={editingRecord}
+            isPending={isFormPending}
+            onSubmit={handleFormSubmit}
+            onCancel={() => {
+              setFormOpen(false);
+              setEditingRecord(undefined);
+            }}
+          />
+        ) : null}
+      </CrudFormDialog>
+      <CrudConfirmDialog
+        open={deletingRecord !== undefined}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeletingRecord(undefined);
+          }
+        }}
+        title="Excluir {{singularLabel}}?"
+        description={
+          deletingRecord
+            ? `O registro "${deletingRecord.id}" será excluído permanentemente.`
+            : "Esta operação não poderá ser desfeita."
+        }
+        confirmLabel={deleteMutation.isPending ? "Excluindo..." : "Excluir"}
+        confirmDisabled={deleteMutation.isPending}
+        onConfirm={handleDelete}
+      />
+    </>
+  );
+}
+
+interface RecordHeaderProps {
+  pluralLabel: string;
+  singularLabel: string;
+  canCreate: boolean;
+  onCreate: () => void;
+}
+
+function RecordHeader({
+  pluralLabel,
+  singularLabel,
+  canCreate,
+  onCreate,
+}: RecordHeaderProps) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div>
+        <p className="text-sm text-muted-foreground">
+          Gerencie {pluralLabel.toLowerCase()}.
+        </p>
+      </div>
+      {canCreate ? (
+        <Button type="button" onClick={onCreate}>
+          <Plus />
+          Novo {singularLabel.toLowerCase()}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
