@@ -1,16 +1,15 @@
-# Guia do Software Starter
+# Arquitetura técnica e onboarding
 
 ## Propósito e escopo
 
-O Software Starter é uma base técnica para clonar, executar localmente e
-transformar em uma aplicação web de domínio próprio. Mantém componentes de
-infraestrutura reutilizáveis — autenticação, autorização, multi-tenancy,
-persistência, validação, testes e observabilidade — sem manter o domínio do
-sistema de agendamentos.
+Este guia registra a arquitetura técnica herdada pelo Book Club Platform a
+partir do Software Starter. A base mantém componentes reutilizáveis —
+autenticação, autorização, multi-tenancy, persistência, validação, testes e
+observabilidade — sem manter o domínio do sistema anterior de agendamentos.
 
 O dashboard e a feature `ExampleItem` demonstram padrões de interface e CRUD.
 `ExampleItem` é apenas um exemplo para orientar novas funcionalidades; catálogo
-de livros, ciclos de leitura e encontros ainda não fazem parte do starter.
+de livros, ciclos de leitura e encontros ainda não fazem parte da plataforma.
 
 ## Stack e arquitetura
 
@@ -41,13 +40,14 @@ src/
     observability/      Contexto e tratamento comum de Server Actions
     rate-limit/         Limites baseados em PostgreSQL
 prisma/
-  schema.prisma        Modelos atuais do starter
+  schema.prisma        Modelos atuais da base técnica
   migrations/          Histórico ativo de migrations
   migrations-legacy/   Histórico antigo preservado, fora do caminho ativo
   seed.ts              Entrada do seed local
 scripts/               Setup, isolamento de ambiente e operações de banco
 plop/                  Gerador de CRUD e templates
 docs/                  Documentação técnica e de produto
+specs/                 Especificações históricas do sistema anterior
 ```
 
 As páginas `/` e `/login` são públicas. As páginas sob o layout de
@@ -123,7 +123,9 @@ Produção exige `AUTH_SECRET` (ou `NEXTAUTH_SECRET`) forte e privado.
 
 ## Ambientes e banco de dados
 
-O Docker Compose executa PostgreSQL 16 com dois bancos independentes:
+O Docker Compose executa PostgreSQL 16 com dois bancos independentes. Os nomes `software_starter_dev` e `software_starter_test` são mantidos por
+compatibilidade com volumes locais existentes; não representam a identidade
+do produto:
 
 | Banco                   | Uso                                  |
 | ----------------------- | ------------------------------------ |
@@ -139,8 +141,8 @@ variáveis de conexão `PG*` herdadas e recusam destinos locais diferentes dos
 bancos permitidos. A CI usa seu próprio PostgreSQL efêmero. Não use esses
 comandos para apontar ao banco do sistema original.
 
-`prisma/schema.prisma` e `prisma/migrations/` representam a baseline limpa do
-starter. `prisma/migrations-legacy/` é apenas arquivo histórico, não deve ser
+`prisma/schema.prisma` e `prisma/migrations/` representam a baseline limpa da
+base técnica. `prisma/migrations-legacy/` é apenas arquivo histórico, não deve ser
 movido para a pasta ativa nem aplicado. Os comandos locais aplicam migrations;
 eles não fazem reset. O seed é idempotente e limitado a desenvolvimento/teste.
 

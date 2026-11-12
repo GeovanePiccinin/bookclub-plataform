@@ -5,8 +5,9 @@ import { PrismaClient } from "../src/generated/prisma/client";
 import { assertEnvironmentDatabase } from "../src/lib/db/database-target";
 import { verifyLiveDatabase } from "../scripts/lib/verify-live-database";
 
+// Keep seed IDs stable so rerunning the seed updates existing local records.
 const tenantId = "starter-demo-tenant";
-const tenantName = "Software Starter Demo";
+const tenantName = "Book Club Platform Demo";
 const adminId = "starter-demo-admin";
 const exampleItemId = "starter-demo-example-item";
 
@@ -85,7 +86,7 @@ export async function runDemoSeed(): Promise<void> {
         await transaction.user.update({
           where: { id: adminId },
           data: {
-            name: "Starter Administrator",
+            name: "Book Club Administrator",
             email: adminEmail,
             passwordHash,
             role: "ADMIN",
@@ -96,7 +97,7 @@ export async function runDemoSeed(): Promise<void> {
           data: {
             id: adminId,
             tenantId,
-            name: "Starter Administrator",
+            name: "Book Club Administrator",
             email: adminEmail,
             passwordHash,
             role: "ADMIN",
@@ -136,7 +137,7 @@ export async function runDemoSeed(): Promise<void> {
     });
 
     console.log(
-      `Starter seed is ready in ${target.database} for ${adminEmail}.`,
+      `Book Club Platform demo seed is ready in ${target.database} for ${adminEmail}.`,
     );
   } finally {
     await prisma.$disconnect();

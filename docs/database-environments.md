@@ -29,6 +29,10 @@ O serviço do Compose mantém bancos independentes:
 - `software_starter_dev` para desenvolvimento e seed.
 - `software_starter_test` para testes.
 
+Esses nomes são identificadores internos herdados e permanecem estáveis para
+não quebrar volumes locais já inicializados. Eles não representam a identidade
+visível do Book Club Platform.
+
 Ambos usam credenciais de exemplo locais e um volume nomeado do projeto. O
 Compose cria o banco de teste na inicialização de um volume novo. `pnpm
 db:down` para o container, mas preserva o volume. Não remova o volume sem
