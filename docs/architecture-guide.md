@@ -82,7 +82,9 @@ precisa de revisão e testes de autorização e isolamento.
   usuário/tenant. A autorização administrativa é verificada nas Server Actions
   e nas leituras da feature `ExampleItem`.
 - Não há cadastro público de usuários. O seed cria apenas um administrador
-  local para desenvolvimento.
+  local para desenvolvimento. Para o primeiro administrador de produção,
+  consulte o procedimento protegido no
+  [guia de ambientes de banco](./database-environments.md#primeiro-administrador-de-produção).
 
 ## Recursos não funcionais
 

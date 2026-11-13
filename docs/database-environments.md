@@ -81,6 +81,52 @@ valide o destino com `pnpm db:check:production` e confirme host, banco e schema.
 Não use comandos de reset em produção. O seed demonstrativo é desativado nesse
 ambiente.
 
+### Primeiro administrador de produção
+
+O seed demonstrativo não provisiona produção. Para um banco de produção novo,
+com as migrations ativas já aplicadas, o workflow manual
+`Provision initial production administrator` cria um tenant e seu primeiro
+usuário `ADMIN`, além de registrar a criação em auditoria. Ele não cria itens
+demonstrativos nem implementa cadastro de usuários.
+
+O provisionamento é exclusivo do GitHub Actions, disparado manualmente a partir
+de `main`. Antes de executá-lo:
+
+1. Revise e integre o workflow e o script por PR. Confirme migrations, backup
+   ou procedimento de recuperação do banco e o destino com o provedor.
+2. Em **Settings > Environments**, configure o ambiente `production`.
+   Restrinja o acesso a `main` e exija aprovação humana quando disponível no
+   plano do repositório. Essas proteções são configurações manuais do GitHub,
+   não são criadas pelo workflow. Limite quem pode alterar workflows, segredos,
+   variáveis e iniciar execuções.
+3. Configure neste ambiente os secrets `DATABASE_URL`,
+   `BOOTSTRAP_ADMIN_EMAIL` e `BOOTSTRAP_ADMIN_PASSWORD`. Use uma senha forte e
+   única, de 16 a 256 caracteres, guardada em gerenciador de senhas; não envie
+   credenciais em mensagens nem as registre no repositório. O login atualmente
+   não oferece alteração ou recuperação de senha.
+4. Configure as variáveis de ambiente do GitHub `BOOTSTRAP_TENANT_NAME`,
+   `BOOTSTRAP_ADMIN_NAME`, `BOOTSTRAP_EXPECTED_HOST`,
+   `BOOTSTRAP_EXPECTED_PORT` e `BOOTSTRAP_EXPECTED_DATABASE`. Confirme host,
+   porta e nome do banco diretamente com o provedor, independentemente do
+   secret `DATABASE_URL`. A URL deve conter porta explícita e usar schema
+   `public`. Não inclua credenciais nas variáveis de destino.
+5. Em **Actions**, selecione o workflow, a branch `main`, informe `PROVISION`
+   no campo de confirmação e aprove a execução se necessário. Uma branch ou
+   confirmação diferente deixa o job sem execução. Confira o resultado do job;
+   não considere um job ignorado como provisionamento bem-sucedido.
+6. Após sucesso, teste o login com o e-mail em minúsculas e a senha escolhida.
+   Remova os secrets temporários `BOOTSTRAP_ADMIN_EMAIL` e
+   `BOOTSTRAP_ADMIN_PASSWORD` do GitHub e mantenha a senha no gerenciador.
+   Preserve `DATABASE_URL` se outros workflows de produção dependerem dele.
+
+O script compara URL e destino configurado, verifica o banco e schema ativos e
+exige que **não exista nenhum tenant ou usuário**. A criação e a auditoria
+ocorrem em uma transação serializável. Se já houver dados, inclusive após uma
+execução bem-sucedida, ele falha sem atualizar contas; não é uma ferramenta de
+recuperação de senha nem de criação de administradores adicionais. Falhas de
+conexão, migrations ou conflito devem ser investigadas antes de nova tentativa.
+Nunca execute esse comando a partir do terminal local.
+
 ## Baseline do starter
 
 O schema ativo e a migration inicial definem o starter: usuários e itens de
