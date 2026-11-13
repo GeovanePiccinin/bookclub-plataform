@@ -1,16 +1,56 @@
-name: Production DB Setup (Migrations)
+name: Production release
 
 on:
-  workflow_dispatch:
+  workflow_call:
+    secrets:
+      DATABASE_URL:
+        required: false
+      VERCEL_TOKEN:
+        required: false
+      VERCEL_AUTOMATION_BYPASS_SECRET:
+        required: false
+
+permissions:
+  contents: read
 
 jobs:
-  setup-production-db:
+  release:
     runs-on: ubuntu-latest
     environment: production
-
+    timeout-minutes: 45
+    concurrency:
+      group: production-db-and-release
+      cancel-in-progress: false
     steps:
-      - name: Checkout
+      - name: Check release is explicitly enabled
+        env:
+          RELEASE_ENABLED: ${{ vars.PRODUCTION_RELEASE_ENABLED }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" != "push" || "$GITHUB_REF" != "refs/heads/main" || "$RELEASE_ENABLED" != "true" || -z "$VERCEL_TOKEN" || -z "$VERCEL_ORG_ID" || -z "$VERCEL_PROJECT_ID" || ! "$PRODUCTION_URL" =~ ^https://[a-zA-Z0-9.-]+$ ]]; then
+            echo "::error::Production release is disabled or its Vercel configuration is incomplete."
+            exit 1
+          fi
+
+      - name: Checkout the tested commit
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Check commit is still main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)" = "$GITHUB_SHA" || {
+            echo "::error::This run is stale; release the latest main commit instead."
+            exit 1
+          }
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -26,10 +66,94 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate Prisma Client
-        run: pnpm db:generate
+      - name: Install Vercel CLI
+        run: npm install --global vercel@65.15.0
 
-      - name: Run Production Migrations
-        run: pnpm db:migrate:production
+      - name: Authenticate Vercel CLI
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: vercel whoami --token "$VERCEL_TOKEN"
+
+      - name: Validate migration target
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          MIGRATION_EXPECTED_HOST: ${{ vars.MIGRATION_EXPECTED_HOST }}
+          MIGRATION_EXPECTED_PORT: ${{ vars.MIGRATION_EXPECTED_PORT }}
+          MIGRATION_EXPECTED_DATABASE: ${{ vars.MIGRATION_EXPECTED_DATABASE }}
+          MIGRATION_EXPECTED_USER: ${{ vars.MIGRATION_EXPECTED_USER }}
+        run: |
+          pnpm exec tsx scripts/check-production-target.ts
+          pnpm db:check:production
+
+      - name: Apply pending migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm db:migrate:production
+
+      - name: Build production deployment without promotion
+        id: deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          url="$(vercel deploy --prod --skip-domain --yes --token "$VERCEL_TOKEN")"
+          if [[ ! "$url" =~ ^https://[a-zA-Z0-9.-]+\.vercel\.app$ ]]; then
+            echo "::error::Vercel did not return a valid deployment URL."
+            exit 1
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Deployment created: $url"
+          vercel inspect "$url" --wait --timeout 10m --token "$VERCEL_TOKEN"
+
+      - name: Verify deployment before promotion
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
+          BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          set -euo pipefail
+          headers=()
+          if [[ -n "$BYPASS_SECRET" ]]; then headers=(-H "x-vercel-protection-bypass: $BYPASS_SECRET"); fi
+          status="$(curl --silent --show-error --max-time 30 --output /dev/null --write-out '%{http_code}' "${headers[@]}" "$DEPLOYMENT_URL/")"
+          if [[ "$status" != "200" ]]; then
+            echo "::error::Deployment health check returned HTTP $status."
+            exit 1
+          fi
+
+      - name: Promote tested deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)" = "$GITHUB_SHA" || {
+            echo "::error::Main changed during release; refusing to promote an outdated commit."
+            exit 1
+          }
+          vercel promote "$DEPLOYMENT_URL" --yes --timeout 10m --token "$VERCEL_TOKEN"
+
+      - name: Verify and record publication
+        env:
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
+          BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          set -euo pipefail
+          headers=()
+          if [[ -n "$BYPASS_SECRET" ]]; then headers=(-H "x-vercel-protection-bypass: $BYPASS_SECRET"); fi
+          status="$(curl --silent --show-error --max-time 30 --output /dev/null --write-out '%{http_code}' "${headers[@]}" "$PRODUCTION_URL/")"
+          {
+            echo "## Production release"
+            echo "- Commit: $GITHUB_SHA"
+            echo "- Deployment: $DEPLOYMENT_URL"
+            echo "- Production URL: $PRODUCTION_URL"
+            echo "- HTTP status: $status"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$status" != "200" ]]; then
+            echo "::error::Published site health check returned HTTP $status; investigate the already promoted deployment."
+            exit 1
+          fi
