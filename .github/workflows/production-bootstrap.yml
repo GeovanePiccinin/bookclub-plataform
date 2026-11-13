@@ -1,0 +1,53 @@
+name: Provision initial production administrator
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type PROVISION to confirm the initial administrator creation
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-admin-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  provision:
+    if: github.ref == 'refs/heads/main' && inputs.confirmation == 'PROVISION'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Provision initial administrator
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BOOTSTRAP_ADMIN_EMAIL: ${{ secrets.BOOTSTRAP_ADMIN_EMAIL }}
+          BOOTSTRAP_ADMIN_PASSWORD: ${{ secrets.BOOTSTRAP_ADMIN_PASSWORD }}
+          BOOTSTRAP_TENANT_NAME: ${{ vars.BOOTSTRAP_TENANT_NAME }}
+          BOOTSTRAP_ADMIN_NAME: ${{ vars.BOOTSTRAP_ADMIN_NAME }}
+          BOOTSTRAP_EXPECTED_HOST: ${{ vars.BOOTSTRAP_EXPECTED_HOST }}
+          BOOTSTRAP_EXPECTED_PORT: ${{ vars.BOOTSTRAP_EXPECTED_PORT }}
+          BOOTSTRAP_EXPECTED_DATABASE: ${{ vars.BOOTSTRAP_EXPECTED_DATABASE }}
+        run: pnpm db:bootstrap:production
