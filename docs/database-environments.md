@@ -3,6 +3,21 @@
 O desenvolvimento local usa PostgreSQL 16 no Docker Compose. A aplicação
 Next.js executa no host via pnpm.
 
+## Mapa dos ambientes
+
+| Ambiente               | Onde executa                 | Banco e configuração                                                              | Quem configura                  |
+| ---------------------- | ---------------------------- | --------------------------------------------------------------------------------- | ------------------------------- |
+| Desenvolvimento        | Next.js no computador do dev | Docker local `software_starter_dev`; `.env.development`                           | Cada dev                        |
+| Testes locais          | Vitest no computador do dev  | Docker local `software_starter_test`; `.env.test`                                 | Cada dev                        |
+| CI de PR e `main`      | GitHub Actions               | PostgreSQL temporário, com bancos separados para teste e build                    | Workflow                        |
+| Preview, se habilitado | Vercel                       | Banco e variáveis de preview **isolados de produção**                             | Responsável pela infraestrutura |
+| Produção               | Vercel e GitHub Actions      | Supabase; variáveis da Vercel para a aplicação e secrets do GitHub para migration | Responsáveis por produção       |
+
+O nome `DATABASE_URL` aparece em vários ambientes, mas os valores são
+independentes. Secrets do GitHub não são automaticamente compartilhados com a
+Vercel. Nenhum desenvolvedor precisa de credenciais de produção para o setup,
+testes locais ou PR.
+
 ## Requisitos e primeira configuração
 
 Instale Docker Desktop com Compose, Node.js 22 e pnpm. Após clonar o repositório:
@@ -37,6 +52,21 @@ Ambos usam credenciais de exemplo locais e um volume nomeado do projeto. O
 Compose cria o banco de teste na inicialização de um volume novo. `pnpm
 db:down` para o container, mas preserva o volume. Não remova o volume sem
 confirmar que os dados locais podem ser apagados.
+
+Os exemplos locais fornecem `AUTH_SECRET`, `DATABASE_URL`, `DATABASE_SCHEMA`,
+porta Docker e credenciais `DEMO_ADMIN_*` para desenvolvimento; o arquivo de
+teste define também `TEST_DATABASE_URL`. O setup não altera arquivos existentes.
+Para mudar a porta de `54329`, edite-a **nos dois arquivos locais** antes de
+iniciar o Compose. Se já houver um processo de outro projeto usando a porta,
+não o interrompa: escolha outra porta livre. Valores de exemplo nunca devem
+ser usados em produção ou enviados como credenciais reais.
+
+Após `pnpm run setup`, inicie com `pnpm dev` e acesse
+`http://localhost:3000/login` usando os valores locais de `DEMO_ADMIN_EMAIL` e
+`DEMO_ADMIN_PASSWORD`. `pnpm db:up` é suficiente para reiniciar o banco em dias
+seguintes; rode `pnpm db:migrate` se tiver recebido migrations novas. O seed
+local é repetível, mas uma nova execução pode atualizar a conta demonstrativa,
+inclusive sua senha: não o confunda com uma rotina de produção.
 
 ## Comandos locais
 
@@ -73,13 +103,57 @@ remove variáveis PostgreSQL herdadas do processo.
 A CI usa um serviço PostgreSQL 16 efêmero criado para cada execução. Ele mantém
 um banco de build separado e não usa o volume local nem banco de produção.
 
+## Migrations no desenvolvimento e no PR
+
+`pnpm db:migrate` aplica migrations já existentes; ele **não cria** uma nova.
+Quando a alteração exigir uma migration:
+
+1. Em uma branch de trabalho, confirme que o Docker local está ativo e que
+   `.env.development` aponta ao banco local dedicado, nunca ao Supabase. Rode
+   `pnpm db:migrate` para aplicar migrations pendentes existentes e então
+   altere `prisma/schema.prisma`.
+2. Crie a migration sem aplicá-la ao banco de desenvolvimento:
+
+   ```bash
+   pnpm exec tsx scripts/run-env.ts development node_modules/tsx/dist/cli.mjs scripts/prisma-command.ts migrate dev --create-only --name nome_da_mudanca
+   ```
+
+   O wrapper valida o ambiente e a conexão local antes de chamar o Prisma 7.
+   O Prisma pode criar um shadow database temporário no mesmo servidor local e
+   exigir permissões para isso. Se solicitar reset ou relatar drift, **pare e
+   investigue**; não aceite reset nem use o histórico legado.
+
+3. Revise o SQL gerado em `prisma/migrations/`, incluindo operações destrutivas
+   ou incompatíveis com dados existentes. Não edite migrations já aplicadas.
+4. Aplique a nova migration nos bancos locais e atualize o Prisma Client:
+
+   ```bash
+   pnpm db:migrate:development
+   pnpm db:migrate:test
+   pnpm db:generate
+   ```
+
+5. Execute `pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm test` e
+   `pnpm build`. Envie schema e nova pasta da migration no mesmo PR. Registre no
+   PR os testes, compatibilidade, riscos e plano de recuperação.
+6. A CI do PR valida migrations em bancos temporários vazios, não em produção.
+   Ela não garante segurança de uma migration sobre dados existentes: mudanças
+   arriscadas devem ser verificadas também em staging isolado com dados
+   representativos, sem dados pessoais.
+
+O mentor revisa e aprova o PR segundo as regras configuradas no GitHub. Após
+merge na `main`, o release de produção pode iniciar automaticamente; aprovação
+de PR por si só, sem merge, não altera produção.
+
 ## Produção
 
 Comandos de produção exigem `DATABASE_URL` fornecida pelo ambiente de deploy;
 setup local e testes não os invocam. Antes de uma migration ou seed em produção,
 valide o destino com `pnpm db:check:production` e confirme host, banco e schema.
 Não use comandos de reset em produção. O seed demonstrativo é desativado nesse
-ambiente.
+ambiente: `pnpm db:seed` aponta a desenvolvimento e `pnpm db:seed:production`
+também chama o seed demonstrativo, que recusa produção. Não desative essa
+proteção. O bootstrap inicial é separado e não roda em releases posteriores.
 
 ### Migrations e publicação
 
@@ -94,8 +168,9 @@ O resultado e o commit ficam registrados na execução do GitHub Actions. A
 checagem HTTP da página inicial não comprova login, acesso ao banco ou
 equivalência do deployment com todos os domínios: valide também esses pontos.
 
-Esse fluxo **não está ativo apenas pela presença dos arquivos**. Antes de
-integrar o PR que o adiciona, o responsável deve:
+A presença dos arquivos não comprova que as proteções e os valores estejam
+corretos: para configurar, revisar ou reconstruir o ambiente, um responsável
+deve seguir os passos abaixo.
 
 1. Na Vercel, confirme o projeto e a branch de produção e desative a atribuição
    automática dos domínios de produção em **Settings > Environments >
@@ -108,7 +183,10 @@ integrar o PR que o adiciona, o responsável deve:
    Configure branch protection/rulesets para exigir PR, aprovação e o check
    `quality`, e restrinja alterações em workflows e bypass de regras.
 3. Configure os secrets do ambiente: `DATABASE_URL` para migrations e
-   `VERCEL_TOKEN` com acesso apenas ao projeto/equipe necessários. Para
+   `VERCEL_TOKEN` com acesso necessário à equipe e ao projeto. O workflow atual
+   executa `vercel whoami`: um token restrito a um único projeto não permite
+   acesso ao recurso de usuário e pode retornar `User not found`; use um
+   escopo compatível e considere seu alcance ampliado. Para
    deployment protegido por Vercel Authentication, configure também
    `VERCEL_AUTOMATION_BYPASS_SECRET` se o recurso estiver disponível. Um secret
    de ambiente prevalece sobre o de repositório com o mesmo nome.
@@ -125,13 +203,105 @@ integrar o PR que o adiciona, o responsável deve:
    Confirme TLS, conectividade, permissões de DDL e backup/recuperação. A URL
    de aplicação na Vercel pode usar outro endpoint, mas deve apontar ao mesmo
    projeto e banco. Confira esses destinos nos dois painéis.
-6. Revise e integre o PR. Configure `PRODUCTION_RELEASE_ENABLED=true` somente
-   após verificar tudo acima. Sem essa variável o job falha antes da migration,
-   mantendo o deployment atual. Se o job já tiver falhado por estar desativado,
-   execute **Re-run all jobs** na execução de `main` mais recente.
+6. Configure `PRODUCTION_RELEASE_ENABLED=true` somente após verificar tudo
+   acima. Sem essa variável o job falha antes da migration. Se o job já tiver
+   falhado por estar desativado, investigue e execute **Re-run all jobs** na
+   execução de `main` mais recente quando o release estiver autorizado.
 7. Confira cada etapa em **Actions**, incluindo promoção e verificação do
    domínio, e valide manualmente login e funcionalidades críticas. Confirme na
    Vercel que o deployment publicado corresponde ao commit esperado.
+
+### Variáveis por plataforma
+
+**Vercel — Settings > Environment Variables > Production**
+
+| Nome                                   | Uso                                                                |
+| -------------------------------------- | ------------------------------------------------------------------ |
+| `DATABASE_URL`                         | Conexão da aplicação ao banco de produção.                         |
+| `APP_ENV`                              | Defina `production` também no runtime; `NODE_ENV` não o substitui. |
+| `AUTH_SECRET`                          | Segredo forte e privado usado pela autenticação e rate limit.      |
+| `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN` | Opcionais, se observabilidade Sentry estiver configurada.          |
+
+Configure ou confirme o build command `pnpm build:production` em
+**Settings > Build and Deployment** na Vercel.
+Defina as variáveis para o ambiente **Production** e faça novo deployment após
+alterações quando necessário. `DATABASE_URL` deve incluir host, porta explícita
+e banco; o schema aceito pelo projeto é `public`. Tokens e credenciais nunca
+devem ser prefixados com `NEXT_PUBLIC_` ou armazenados no repositório.
+
+**GitHub — Settings > Environments > production**
+
+Configure como **Environment secrets**:
+
+| Nome                              | Uso                                                                                                                           |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                    | Conexão usada pelo Prisma para migrations; pode ser diferente da URL da aplicação, mas deve apontar ao mesmo banco e projeto. |
+| `VERCEL_TOKEN`                    | Token de acesso da Vercel usado pela CLI para autenticar, criar e promover o deployment.                                      |
+| `VERCEL_AUTOMATION_BYPASS_SECRET` | Necessário quando a URL do deployment protegido exige bypass para o teste HTTP; não é o token da CLI.                         |
+
+Configure como **Environment variables**:
+
+| Nome                          | Uso                                                                                                                 |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `PRODUCTION_RELEASE_ENABLED`  | `true` para habilitar o job; ausente ou outro valor bloqueia antes da migration.                                    |
+| `VERCEL_ORG_ID`               | Identificador da equipe/conta proprietária do projeto.                                                              |
+| `VERCEL_PROJECT_ID`           | Identificador do projeto Vercel.                                                                                    |
+| `PRODUCTION_URL`              | Origem HTTPS sem caminho nem barra final; a página `/` deve responder HTTP 200.                                     |
+| `MIGRATION_EXPECTED_HOST`     | Host da URL de migration conferido no Supabase.                                                                     |
+| `MIGRATION_EXPECTED_PORT`     | Porta da URL de migration.                                                                                          |
+| `MIGRATION_EXPECTED_DATABASE` | Nome do banco da URL de migration.                                                                                  |
+| `MIGRATION_EXPECTED_USER`     | Usuário completo da URL de migration; no pooler Supabase normalmente `postgres.<referência-do-projeto>`, sem senha. |
+
+Os valores `BOOTSTRAP_*` são exclusivos do provisionamento inicial descrito
+abaixo e não são necessários nos releases normais. `AUTH_SECRET` pertence à
+aplicação Vercel, não é uma credencial necessária ao job de migration. O
+secret de ambiente tem precedência sobre um secret de repositório homônimo.
+
+**Supabase — Connect e configurações do projeto**
+
+Confirme o projeto, banco, schema, usuário e endpoint independentemente dos
+valores do GitHub e da Vercel. Para o Session Pooler, copie também o usuário
+completo específico do projeto; não use somente `postgres` se a URL contiver
+o sufixo. Confirme que o usuário de migration tem permissões de DDL e que há
+backup e procedimento de recuperação. Não copie a URL completa em issues,
+logs ou mensagens.
+
+### Onde o fluxo está definido
+
+- `.github/workflows/ci.yml`: PRs e pushes na `main`; executa `quality` e
+  chama o release somente após sucesso em push para `main`.
+- `.github/workflows/prod-db-setup.yml`: job do ambiente `production`, valida
+  configuração e banco, executa `pnpm db:migrate:production`, cria deployment
+  não promovido, verifica HTTP e promove na Vercel.
+- `.github/workflows/production-bootstrap.yml`: provisionamento manual inicial
+  de tenant e admin; não é executado em cada release.
+- `vercel.json`: desativa deployments Git da `main`; permissões, domínio,
+  segredo de bypass e prevenção de outros caminhos de deploy são configurados
+  nos painéis.
+- `prisma.config.ts` e `prisma/migrations/`: configuração Prisma 7 e histórico
+  ativo. O histórico em `prisma/migrations-legacy/` não deve ser aplicado.
+
+Um check de HTTP 200 confirma apenas a resposta da página inicial, não a
+autenticação, os dados ou a integridade de todos os domínios. Uma alteração na
+`main` durante o release é conferida antes da migration e da promoção, mas não
+há bloqueio atômico de merges; mantenha migrations compatíveis e acompanhe
+releases concorrentes. Configurações externas, segredos, proteções e acessos
+devem ser verificados pelos responsáveis nos painéis: o repositório não
+confirma seu estado atual.
+
+### Falhas observadas e diagnóstico
+
+| Mensagem                                                                   | Verificação                                                                                                                                                                                                 |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Production release is disabled or its Vercel configuration is incomplete` | Verifique habilitação, token e IDs; `PRODUCTION_URL` deve ser HTTPS **sem barra final**.                                                                                                                    |
+| `User not found` em `vercel whoami`                                        | Verifique validade e escopo do token. Token restrito a um projeto não acessa o recurso de usuário usado pelo comando.                                                                                       |
+| `Migration DATABASE_URL does not match...`                                 | Compare host, porta, banco e usuário completos com a URL de migration; não exponha a senha. No Session Pooler, confira o sufixo do usuário.                                                                 |
+| `Deployment health check returned HTTP 302`                                | Pode ser proteção Vercel. Confira o destino do redirect e, se apropriado, configure **Protection Bypass for Automation** na Vercel e o secret de mesmo nome no GitHub. Não trate qualquer 302 como sucesso. |
+
+Após corrigir, confira o estágio em que houve falha antes de usar **Re-run all
+jobs** na execução mais recente da `main`. Isso pode aplicar migrations
+pendentes e publicar. Uma falha antes de `Apply pending migrations` não chegou
+a essa etapa; falhas posteriores podem ocorrer após mudanças no banco.
 
 Previews de PR não devem usar a URL de produção: configure um banco de preview
 isolado ou desative os previews. Segredos de produção não são usados pelo job

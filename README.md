@@ -32,11 +32,16 @@ pnpm dev
 ```
 
 O setup cria arquivos locais de ambiente sem sobrescrever arquivos existentes,
-inicia PostgreSQL, aplica a migration ativa e prepara um administrador e um
+inicia PostgreSQL, aplica as migrations ativas e prepara um administrador e um
 item demonstrativos. Os dados e credenciais de exemplo são apenas para
 desenvolvimento local; nunca os use em produção. Consulte os
 [ambientes de banco de dados](./docs/database-environments.md) antes de
 executar comandos relacionados ao banco.
+
+Para desenvolver e abrir PRs, não é necessário ter credenciais do Supabase de
+produção, da Vercel ou do GitHub Actions. O fluxo de migrations e as
+configurações restritas aos responsáveis por produção estão no
+[guia de ambientes e publicação](./docs/database-environments.md).
 
 No PowerShell do Windows, use `pnpm.cmd` se a política de execução bloquear
 `pnpm.ps1`.
