@@ -81,6 +81,85 @@ valide o destino com `pnpm db:check:production` e confirme host, banco e schema.
 Não use comandos de reset em produção. O seed demonstrativo é desativado nesse
 ambiente.
 
+### Migrations e publicação
+
+O fluxo de release usa a CI do PR e, depois do merge em `main`, executa
+novamente o job `quality`. Após seu sucesso, o job de produção valida a
+configuração e o destino, aplica migrations pendentes, cria um deployment
+Vercel sem promovê-lo, verifica sua resposta HTTP e só então o promove.
+O antigo disparo manual de migrations é substituído por esse fluxo: uma
+tentativa manual de recuperação deve reexecutar a CI do commit mais recente,
+incluindo a publicação, após o diagnóstico apropriado.
+O resultado e o commit ficam registrados na execução do GitHub Actions. A
+checagem HTTP da página inicial não comprova login, acesso ao banco ou
+equivalência do deployment com todos os domínios: valide também esses pontos.
+
+Esse fluxo **não está ativo apenas pela presença dos arquivos**. Antes de
+integrar o PR que o adiciona, o responsável deve:
+
+1. Na Vercel, confirme o projeto e a branch de produção e desative a atribuição
+   automática dos domínios de produção em **Settings > Environments >
+   Production > Branch Tracking**. Preserve o deployment atual. Confirme que
+   nenhum outro projeto, deploy hook, integração ou workflow consegue publicar
+   diretamente no domínio. O `vercel.json` adicionalmente desativa deploys Git
+   para `main`, mas mantenha a proteção no painel durante a transição.
+2. No GitHub, em **Settings > Environments > production**, restrinja a branch
+   a `main`; ative aprovação do ambiente quando apropriado e disponível.
+   Configure branch protection/rulesets para exigir PR, aprovação e o check
+   `quality`, e restrinja alterações em workflows e bypass de regras.
+3. Configure os secrets do ambiente: `DATABASE_URL` para migrations e
+   `VERCEL_TOKEN` com acesso apenas ao projeto/equipe necessários. Para
+   deployment protegido por Vercel Authentication, configure também
+   `VERCEL_AUTOMATION_BYPASS_SECRET` se o recurso estiver disponível. Um secret
+   de ambiente prevalece sobre o de repositório com o mesmo nome.
+4. Configure as variáveis do ambiente: `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`,
+   `PRODUCTION_URL` (URL HTTPS do domínio, sem caminho nem barra final),
+   `MIGRATION_EXPECTED_HOST`, `MIGRATION_EXPECTED_PORT`,
+   `MIGRATION_EXPECTED_DATABASE` e `MIGRATION_EXPECTED_USER`. Os quatro últimos
+   valores são o host, porta, banco e usuário da URL de migration, conferidos
+   independentemente com o Supabase; o usuário do pooler inclui a referência do
+   projeto. Não coloque senha em variáveis nem nos logs.
+5. Confira as credenciais e permissões antes de habilitar o fluxo. No Supabase,
+   prefira conexão direta para migrations; se o runner não tiver IPv6 e não
+   houver IPv4 direto, use o pooler em **modo sessão**, não modo transação.
+   Confirme TLS, conectividade, permissões de DDL e backup/recuperação. A URL
+   de aplicação na Vercel pode usar outro endpoint, mas deve apontar ao mesmo
+   projeto e banco. Confira esses destinos nos dois painéis.
+6. Revise e integre o PR. Configure `PRODUCTION_RELEASE_ENABLED=true` somente
+   após verificar tudo acima. Sem essa variável o job falha antes da migration,
+   mantendo o deployment atual. Se o job já tiver falhado por estar desativado,
+   execute **Re-run all jobs** na execução de `main` mais recente.
+7. Confira cada etapa em **Actions**, incluindo promoção e verificação do
+   domínio, e valide manualmente login e funcionalidades críticas. Confirme na
+   Vercel que o deployment publicado corresponde ao commit esperado.
+
+Previews de PR não devem usar a URL de produção: configure um banco de preview
+isolado ou desative os previews. Segredos de produção não são usados pelo job
+de `quality`.
+
+O job de produção e o bootstrap inicial compartilham uma fila de concorrência.
+Uma execução antiga que ainda não iniciou a migration, ou que ficou antiga
+antes da promoção, falha em vez de publicar seu commit. O GitHub mantém apenas
+uma execução pendente por grupo: outra execução pode substituir a pendente,
+inclusive entre bootstrap e release. Verifique cancelamentos e reexecute o job
+de `main` mais recente quando necessário. Uma aprovação do ambiente pode
+acrescentar uma etapa manual.
+
+As migrations devem ser compatíveis com o código atualmente publicado: o banco
+é alterado antes da promoção e não existe rollback automático do schema.
+Desmembre alterações incompatíveis em etapas e planeje backfill e recuperação.
+Um teste em banco vazio não verifica todos os riscos de dados reais; teste
+também upgrades em staging com dados representativos e sem informações pessoais.
+Não edite migrations já aplicadas, nem aplique o histórico legado.
+
+Se migration, build, validação ou promoção falhar, investigue antes de
+reexecutar. A migration pode já ter alterado o banco mesmo se uma etapa
+posterior falhar; rollback de deployment não reverte o banco. Se a verificação
+do domínio falhar após a promoção, o deployment novo pode já estar publicado.
+Uma promoção pode continuar após timeout. Consulte a Vercel e o histórico de
+`_prisma_migrations`; use migration corretiva ou recuperação avaliada. Não use
+reset ou `migrate resolve` sem diagnóstico e procedimento aprovado.
+
 ### Primeiro administrador de produção
 
 O seed demonstrativo não provisiona produção. Para um banco de produção novo,

@@ -11,15 +11,14 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: production-admin-bootstrap
-  cancel-in-progress: false
-
 jobs:
   provision:
     if: github.ref == 'refs/heads/main' && inputs.confirmation == 'PROVISION'
     runs-on: ubuntu-latest
     environment: production
+    concurrency:
+      group: production-db-and-release
+      cancel-in-progress: false
     steps:
       - name: Checkout main
         uses: actions/checkout@v4

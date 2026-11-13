@@ -119,6 +119,8 @@ ativam:
 Confirme o nome do check exibido pelo GitHub após uma execução da workflow.
 Confirme também quais controles estão disponíveis conforme o plano e as
 permissões do repositório. Não presuma que estas regras estejam habilitadas.
+Para alterações de banco, revise compatibilidade e recuperação, e siga o
+[procedimento de migrations e publicação](./docs/database-environments.md#migrations-e-publicação).
 
 ## Uso de ferramentas de IA
 
