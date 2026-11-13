@@ -23,6 +23,12 @@ comandos de ambiente validam alvos de banco e não devem ser configurados para
 usar bases do sistema original, produção ou serviços externos. Preserve volumes
 locais; não use reset destrutivo para corrigir o ambiente.
 
+Cada desenvolvedor usa o próprio banco local e as credenciais de demonstração.
+Não precisa configurar secrets de produção, instalar a CLI da Vercel nem receber
+acesso ao Supabase de produção para desenvolver ou abrir um PR. Consulte o
+[guia de ambientes](./docs/database-environments.md) para detalhes do setup,
+migrations e seed.
+
 ## Branches
 
 Crie branches curtas a partir de `main` e use um prefixo simples:
@@ -99,6 +105,12 @@ Use o template de bug, user story ou tarefa técnica. PRs devem referenciar a
 Issue quando aplicável, explicar risco/impacto e registrar evidências de teste.
 Inclua screenshots para mudanças visuais e logs sanitizados quando ajudarem na
 revisão. Responda aos comentários e resolva conversas antes do merge.
+
+Se o PR altera o banco, inclua schema e migration ativa, descreva compatibilidade
+com a versão publicada, riscos para dados, testes e recuperação. A CI do PR usa
+bancos temporários; ela não aplica migrations em produção. Após revisão e merge,
+o release automático roda apenas na `main`, se configurado e habilitado.
+Previews Vercel, quando habilitados, precisam de banco próprio isolado.
 
 ### Proteções manuais do GitHub
 
