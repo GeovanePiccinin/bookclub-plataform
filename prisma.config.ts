@@ -14,6 +14,7 @@ if (
   appEnvironment !== "schema" &&
   appEnvironment !== "development" &&
   appEnvironment !== "test" &&
+  appEnvironment !== "preview" &&
   appEnvironment !== "production"
 ) {
   throw new Error(

@@ -1,4 +1,4 @@
-export type AppEnvironment = "development" | "test" | "production";
+export type AppEnvironment = "development" | "test" | "preview" | "production";
 
 export interface DatabaseTarget {
   host: string;
@@ -132,6 +132,13 @@ export function assertEnvironmentDatabase(
       throw new Error(
         `Tests must use the dedicated local database ${localDatabaseNames.test}.`,
       );
+    }
+  } else if (environment === "preview") {
+    if (
+      ["localhost", ...loopbackHosts].includes(target.host) ||
+      target.database.endsWith("_test")
+    ) {
+      throw new Error("Preview must use a dedicated remote database.");
     }
   } else if (target.database.endsWith("_test")) {
     throw new Error("Production cannot use a test database.");

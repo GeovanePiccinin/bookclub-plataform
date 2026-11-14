@@ -107,10 +107,12 @@ Inclua screenshots para mudanças visuais e logs sanitizados quando ajudarem na
 revisão. Responda aos comentários e resolva conversas antes do merge.
 
 Se o PR altera o banco, inclua schema e migration ativa, descreva compatibilidade
-com a versão publicada, riscos para dados, testes e recuperação. A CI do PR usa
-bancos temporários; ela não aplica migrations em produção. Após revisão e merge,
-o release automático roda apenas na `main`, se configurado e habilitado.
-Previews Vercel, quando habilitados, precisam de banco próprio isolado.
+com a versão publicada, riscos para dados, testes e recuperação. O job `quality`
+usa bancos temporários; após seu sucesso, migrations de PR são aplicadas ao
+staging compartilhado, conforme as proteções do Environment `preview`. A CI do
+PR não aplica migrations em produção. Após revisão e merge, o release automático
+roda apenas na `main`, se configurado e habilitado. Previews Vercel precisam de
+banco isolado de produção; consulte o guia de ambientes para riscos e configuração.
 
 ### Proteções manuais do GitHub
 
