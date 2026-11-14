@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { validateProductionTarget } from "./validate-production-target";
+import {
+  validatePreviewTarget,
+  validateProductionTarget,
+} from "./validate-production-target";
 
 const valid = {
   DATABASE_URL:
@@ -37,5 +40,39 @@ describe("production migration target", () => {
     },
   ])("rejects mismatched or unsafe targets", (changes) => {
     expect(() => validateProductionTarget({ ...valid, ...changes })).toThrow();
+  });
+
+  describe("preview migration target", () => {
+    const preview = {
+      DATABASE_URL: valid.DATABASE_URL,
+      PREVIEW_MIGRATION_EXPECTED_HOST: valid.MIGRATION_EXPECTED_HOST,
+      PREVIEW_MIGRATION_EXPECTED_PORT: valid.MIGRATION_EXPECTED_PORT,
+      PREVIEW_MIGRATION_EXPECTED_DATABASE: valid.MIGRATION_EXPECTED_DATABASE,
+      PREVIEW_MIGRATION_EXPECTED_USER: valid.MIGRATION_EXPECTED_USER,
+    };
+
+    it("accepts an independently configured remote preview target", () => {
+      expect(() => validatePreviewTarget(preview)).not.toThrow();
+      expect(() => validatePreviewTarget(valid)).toThrow();
+    });
+
+    it.each([
+      { PREVIEW_MIGRATION_EXPECTED_HOST: "" },
+      { PREVIEW_MIGRATION_EXPECTED_PORT: "6543" },
+      { PREVIEW_MIGRATION_EXPECTED_DATABASE: "other" },
+      { PREVIEW_MIGRATION_EXPECTED_USER: "other" },
+      {
+        DATABASE_URL:
+          "postgresql://migration.user:secret@localhost:5432/bookclub",
+        PREVIEW_MIGRATION_EXPECTED_HOST: "localhost",
+      },
+      {
+        DATABASE_URL:
+          "postgresql://migration.user:secret@db.example.org:5432/bookclub_test",
+        PREVIEW_MIGRATION_EXPECTED_DATABASE: "bookclub_test",
+      },
+    ])("rejects missing, mismatched or unsafe targets", (changes) => {
+      expect(() => validatePreviewTarget({ ...preview, ...changes })).toThrow();
+    });
   });
 });

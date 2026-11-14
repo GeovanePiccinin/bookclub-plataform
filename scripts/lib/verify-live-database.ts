@@ -17,6 +17,7 @@ export async function verifyLiveDatabase(): Promise<{
   if (
     environment !== "development" &&
     environment !== "test" &&
+    environment !== "preview" &&
     environment !== "production"
   ) {
     throw new Error("APP_ENV must be set by an explicit environment command.");

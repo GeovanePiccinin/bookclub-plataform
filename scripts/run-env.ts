@@ -11,6 +11,7 @@ import {
   sameDatabaseTarget,
   type AppEnvironment,
 } from "../src/lib/db/database-target";
+import { validatePreviewTarget } from "./validate-production-target";
 
 const ignoredEnvironmentVariables = new Set([
   "APP_ENV",
@@ -60,15 +61,27 @@ function loadCommandEnvironment(
     return commandEnv;
   }
 
-  if (environment === "production") {
+  if (environment === "production" || environment === "preview") {
+    if (
+      environment === "preview" &&
+      (process.env.GITHUB_ACTIONS !== "true" ||
+        process.env.GITHUB_EVENT_NAME !== "pull_request")
+    ) {
+      throw new Error(
+        "Preview commands are restricted to GitHub pull requests.",
+      );
+    }
     const connectionString = process.env.DATABASE_URL?.trim();
     if (!connectionString) {
       throw new Error(
-        "Production DATABASE_URL must be provided by the deployment environment.",
+        `${environment} DATABASE_URL must be provided by the deployment environment.`,
       );
     }
 
     assertEnvironmentDatabase(connectionString, environment);
+    if (environment === "preview") {
+      validatePreviewTarget({ ...process.env, DATABASE_URL: connectionString });
+    }
     commandEnv.DATABASE_URL = connectionString;
     commandEnv.DATABASE_SCHEMA = "public";
     return commandEnv;
@@ -151,6 +164,7 @@ function main(): void {
   const validEnvironments = [
     "development",
     "test",
+    "preview",
     "production",
     "schema",
   ] as const;
@@ -163,7 +177,7 @@ function main(): void {
     command.length === 0
   ) {
     throw new Error(
-      "Usage: run-env.ts <development|test|production|schema> <node-script> [args...]",
+      "Usage: run-env.ts <development|test|preview|production|schema> <node-script> [args...]",
     );
   }
 

@@ -78,6 +78,43 @@ jobs:
       - name: Build
         run: DATABASE_URL=postgresql://test:test@127.0.0.1:5432/software_starter_build pnpm build
 
+  migrate-preview:
+    if: github.event_name == 'pull_request'
+    needs: quality
+    runs-on: ubuntu-latest
+    environment: preview
+    concurrency:
+      group: preview-db-migrations
+      cancel-in-progress: false
+    steps:
+      - name: Checkout tested commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply pending preview migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PREVIEW_MIGRATION_EXPECTED_HOST: ${{ vars.PREVIEW_MIGRATION_EXPECTED_HOST }}
+          PREVIEW_MIGRATION_EXPECTED_PORT: ${{ vars.PREVIEW_MIGRATION_EXPECTED_PORT }}
+          PREVIEW_MIGRATION_EXPECTED_DATABASE: ${{ vars.PREVIEW_MIGRATION_EXPECTED_DATABASE }}
+          PREVIEW_MIGRATION_EXPECTED_USER: ${{ vars.PREVIEW_MIGRATION_EXPECTED_USER }}
+        run: pnpm db:migrate:preview
+
   production-release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: quality

@@ -70,4 +70,20 @@ describe("assertEnvironmentDatabase", () => {
       ).toThrow();
     },
   );
+
+  it("rejects local and test databases for preview", () => {
+    for (const url of [
+      "postgresql://user:password@localhost:5432/bookclub",
+      "postgresql://user:password@127.0.0.1:5432/bookclub",
+      "postgresql://user:password@db.example.org:5432/bookclub_test",
+    ]) {
+      expect(() => assertEnvironmentDatabase(url, "preview")).toThrow();
+    }
+    expect(
+      assertEnvironmentDatabase(
+        "postgresql://user:password@db.example.org:5432/bookclub",
+        "preview",
+      ).database,
+    ).toBe("bookclub");
+  });
 });

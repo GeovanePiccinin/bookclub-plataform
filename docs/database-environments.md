@@ -10,7 +10,7 @@ Next.js executa no host via pnpm.
 | Desenvolvimento        | Next.js no computador do dev | Docker local `software_starter_dev`; `.env.development`                           | Cada dev                        |
 | Testes locais          | Vitest no computador do dev  | Docker local `software_starter_test`; `.env.test`                                 | Cada dev                        |
 | CI de PR e `main`      | GitHub Actions               | PostgreSQL temporário, com bancos separados para teste e build                    | Workflow                        |
-| Preview, se habilitado | Vercel                       | Banco e variáveis de preview **isolados de produção**                             | Responsável pela infraestrutura |
+| Preview, se habilitado | Vercel e GitHub Actions      | Banco e variáveis de preview **isolados de produção**                             | Responsável pela infraestrutura |
 | Produção               | Vercel e GitHub Actions      | Supabase; variáveis da Vercel para a aplicação e secrets do GitHub para migration | Responsáveis por produção       |
 
 O nome `DATABASE_URL` aparece em vários ambientes, mas os valores são
@@ -303,9 +303,40 @@ jobs** na execução mais recente da `main`. Isso pode aplicar migrations
 pendentes e publicar. Uma falha antes de `Apply pending migrations` não chegou
 a essa etapa; falhas posteriores podem ocorrer após mudanças no banco.
 
-Previews de PR não devem usar a URL de produção: configure um banco de preview
-isolado ou desative os previews. Segredos de produção não são usados pelo job
-de `quality`.
+### Migrations de Preview
+
+Após `quality`, PRs direcionados a `main` executam `migrate-preview` no
+Environment `preview`. Configure nele o secret `DATABASE_URL` com a Session
+Pooler do Supabase de staging, porta 5432, e as variáveis independentes
+`PREVIEW_MIGRATION_EXPECTED_HOST`, `PREVIEW_MIGRATION_EXPECTED_PORT`,
+`PREVIEW_MIGRATION_EXPECTED_DATABASE` e `PREVIEW_MIGRATION_EXPECTED_USER`. Use o usuário
+completo da URL, incluindo o identificador do projeto no pooler. Confirme
+independentemente que o projeto e a conta são exclusivos de staging; a
+comparação com as variáveis não detecta uma configuração incorreta que aponte
+para produção. Não use dados pessoais.
+
+O comando `pnpm db:migrate:preview` é restrito a eventos de PR no GitHub Actions,
+valida esses parâmetros e confere o banco e schema ativos antes de executar
+`prisma migrate deploy`. A ausência do secret ou de qualquer variável faz o job
+falhar. PRs de forks normalmente não recebem secrets; seu job de Preview
+falhará sem uma disponibilização explícita e segura das credenciais. Nunca use
+`pull_request_target` para executar código de PR com secrets.
+
+Configure aprovação obrigatória e restrinja acesso ao Environment `preview`
+nas configurações do GitHub, conforme os recursos disponíveis no repositório.
+O job executa código do PR e pode acessar seu secret: revise o código, as
+dependências e as migrations antes de aprová-lo. Essas proteções e o isolamento
+do banco não são garantidos pelo YAML. Configure a Vercel Preview separadamente;
+ela não recebe automaticamente secrets do GitHub.
+
+O banco de staging é compartilhado entre PRs, não isolado por PR. O grupo de
+concorrência impede migrations simultâneas, mas o GitHub pode substituir uma
+execução pendente. Migrations de um PR continuam no banco mesmo se ele for
+fechado; branches divergentes podem causar conflitos ou incompatibilidade.
+Revise compatibilidade, backup e recuperação, acompanhe cancelamentos e
+reexecute quando apropriado. Não há rollback automático. O seed demonstrativo
+não é executado: é restrito a desenvolvimento/teste e altera credenciais e
+registros existentes. Segredos de produção não são usados pelo job `quality`.
 
 O job de produção e o bootstrap inicial compartilham uma fila de concorrência.
 Uma execução antiga que ainda não iniciou a migration, ou que ficou antiga
