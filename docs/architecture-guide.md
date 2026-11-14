@@ -81,8 +81,8 @@ precisa de revisão e testes de autorização e isolamento.
 - Para operações protegidas, o ator é conferido novamente no banco pelo par
   usuário/tenant. A autorização administrativa é verificada nas Server Actions
   e nas leituras da feature `ExampleItem`.
-- Não há cadastro público de usuários. O seed cria apenas um administrador
-  local para desenvolvimento. Para o primeiro administrador de produção,
+- Não há cadastro público de usuários. O seed cria um administrador
+  demonstrativo em desenvolvimento e no Preview isolado. Para o primeiro administrador de produção,
   consulte o procedimento protegido no
   [guia de ambientes de banco](./database-environments.md#primeiro-administrador-de-produção).
 
@@ -146,7 +146,8 @@ comandos para apontar ao banco do sistema original.
 `prisma/schema.prisma` e `prisma/migrations/` representam a baseline limpa da
 base técnica. `prisma/migrations-legacy/` é apenas arquivo histórico, não deve ser
 movido para a pasta ativa nem aplicado. Os comandos locais aplicam migrations;
-eles não fazem reset. O seed é idempotente e limitado a desenvolvimento/teste.
+eles não fazem reset. O seed é idempotente e permitido em desenvolvimento,
+teste e Preview isolado; no Preview, preserva registros existentes.
 
 ## Clonar e executar
 
