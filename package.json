@@ -30,6 +30,7 @@
     "db:migrate:production": "tsx scripts/run-env.ts production node_modules/tsx/dist/cli.mjs scripts/prisma-command.ts migrate deploy",
     "db:seed:development": "tsx scripts/run-env.ts development node_modules/tsx/dist/cli.mjs prisma/seed.ts",
     "db:seed:test": "tsx scripts/run-env.ts test node_modules/tsx/dist/cli.mjs prisma/seed.ts",
+    "db:seed:preview": "tsx scripts/run-env.ts preview node_modules/tsx/dist/cli.mjs prisma/seed.ts",
     "db:seed:production": "tsx scripts/run-env.ts production node_modules/tsx/dist/cli.mjs prisma/seed.ts",
     "db:bootstrap:production": "tsx scripts/run-env.ts production node_modules/tsx/dist/cli.mjs scripts/bootstrap-production.ts",
     "db:reset:test": "tsx scripts/run-env.ts test node_modules/tsx/dist/cli.mjs scripts/reset-test-db.ts",

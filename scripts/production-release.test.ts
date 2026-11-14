@@ -37,7 +37,12 @@ describe("production release safeguards", () => {
     expect(preview).toContain("group: preview-db-migrations");
     expect(preview).toContain("cancel-in-progress: false");
     expect(preview).toContain("pnpm db:migrate:preview");
-    expect(preview).not.toContain("db:seed");
+    expect(preview).toContain("pnpm db:seed:preview");
+    expect(preview?.indexOf("pnpm db:seed:preview")).toBeGreaterThan(
+      preview?.indexOf("pnpm db:migrate:preview") ?? -1,
+    );
+    expect(preview).toContain("secrets.DEMO_ADMIN_EMAIL");
+    expect(preview).toContain("secrets.DEMO_ADMIN_PASSWORD");
   });
 
   it("rejects preview commands outside PRs and with mismatched targets", () => {

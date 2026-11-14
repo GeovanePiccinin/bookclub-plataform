@@ -115,6 +115,17 @@ jobs:
           PREVIEW_MIGRATION_EXPECTED_USER: ${{ vars.PREVIEW_MIGRATION_EXPECTED_USER }}
         run: pnpm db:migrate:preview
 
+      - name: Seed preview demonstration data
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PREVIEW_MIGRATION_EXPECTED_HOST: ${{ vars.PREVIEW_MIGRATION_EXPECTED_HOST }}
+          PREVIEW_MIGRATION_EXPECTED_PORT: ${{ vars.PREVIEW_MIGRATION_EXPECTED_PORT }}
+          PREVIEW_MIGRATION_EXPECTED_DATABASE: ${{ vars.PREVIEW_MIGRATION_EXPECTED_DATABASE }}
+          PREVIEW_MIGRATION_EXPECTED_USER: ${{ vars.PREVIEW_MIGRATION_EXPECTED_USER }}
+          DEMO_ADMIN_EMAIL: ${{ secrets.DEMO_ADMIN_EMAIL }}
+          DEMO_ADMIN_PASSWORD: ${{ secrets.DEMO_ADMIN_PASSWORD }}
+        run: pnpm db:seed:preview
+
   production-release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: quality

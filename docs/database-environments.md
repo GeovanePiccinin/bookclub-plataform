@@ -334,9 +334,19 @@ concorrência impede migrations simultâneas, mas o GitHub pode substituir uma
 execução pendente. Migrations de um PR continuam no banco mesmo se ele for
 fechado; branches divergentes podem causar conflitos ou incompatibilidade.
 Revise compatibilidade, backup e recuperação, acompanhe cancelamentos e
-reexecute quando apropriado. Não há rollback automático. O seed demonstrativo
-não é executado: é restrito a desenvolvimento/teste e altera credenciais e
-registros existentes. Segredos de produção não são usados pelo job `quality`.
+reexecute quando apropriado. Não há rollback automático. Segredos de produção
+não são usados pelo job `quality`.
+
+Após as migrations, `pnpm db:seed:preview` cria o tenant, administrador e item
+demonstrativos ausentes, usando as mesmas validações de destino. Configure os
+secrets `DEMO_ADMIN_EMAIL` e `DEMO_ADMIN_PASSWORD` no Environment `preview`;
+use credenciais exclusivas de demonstração e senha com pelo menos 8 caracteres.
+O seed roda em cada execução bem-sucedida do job, mas preserva registros
+existentes e recria os ausentes. Alterar esses secrets não atualiza a senha ou
+e-mail de um administrador já criado. Colisões com outros tenants ou usuários
+fazem o seed falhar; ele não substitui dados de outras pessoas. O seed de
+desenvolvimento/teste mantém seu comportamento anterior, e produção continua
+bloqueada.
 
 ### Concorrência e recuperação do release de produção
 

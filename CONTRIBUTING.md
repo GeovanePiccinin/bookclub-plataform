@@ -77,7 +77,7 @@ pnpm build
 `pnpm test` executa a suíte uma vez usando o banco local de testes já
 preparado. Para iniciar o PostgreSQL, aplicar a migration de teste e executar
 a suíte em sequência, use `pnpm test:local`. O setup inicial prepara os dois
-bancos; o seed fica somente em desenvolvimento. `pnpm build` usa o alvo local
+bancos; o setup local executa o seed somente em desenvolvimento. `pnpm build` usa o alvo local
 validado, enquanto CI/deploy pode usar `pnpm build:production` com um banco
 efêmero/de build isolado.
 
