@@ -338,6 +338,8 @@ reexecute quando apropriado. Não há rollback automático. O seed demonstrativo
 não é executado: é restrito a desenvolvimento/teste e altera credenciais e
 registros existentes. Segredos de produção não são usados pelo job `quality`.
 
+### Concorrência e recuperação do release de produção
+
 O job de produção e o bootstrap inicial compartilham uma fila de concorrência.
 Uma execução antiga que ainda não iniciou a migration, ou que ficou antiga
 antes da promoção, falha em vez de publicar seu commit. O GitHub mantém apenas
